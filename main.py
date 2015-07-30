@@ -33,6 +33,13 @@ class Main:
 		if config.args.setup:
 			self.setup()
 
+		if robot.robot():
+			log.info("Robot is counting objects")
+			self.number_of_objects = robot.robot().count_objects()
+			robot.robot().say("I see %d objects" % self.number_of_objects, False)
+			log.info("%d objects detected", self.number_of_objects)
+			self.number_of_objects = 17
+
 		# runtime does not include the time it took to run setup since it should only be run once
 		start = time.time()
 		self.simulate()

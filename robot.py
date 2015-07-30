@@ -70,6 +70,9 @@ class Robot(ALModule):
 
 		self.asr.setVocabulary([j for i in self.yes_no_vocab.values() for j in i], False)
 
+		# Custom segmentationation module
+		self.segmentation = ALProxy("Segmentation", address, port)
+
 		# --- text to speech ---
 		self.tts = ALProxy("ALTextToSpeech", address, port)
 
@@ -392,6 +395,10 @@ class Robot(ALModule):
 		"""
 
 		self.gaze.unsubscribe("_")
+
+	def count_objects(self):
+		objects = self.segmentation.look_for_objects()
+		return len(objects)
 
 #------------------------Main------------------------#
 
