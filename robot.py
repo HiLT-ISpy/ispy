@@ -1,3 +1,4 @@
+import math
 import time
 import os
 
@@ -85,7 +86,7 @@ class Robot(ALModule):
 		# --- face tracking ---
 		self.track = ALProxy("ALFaceTracker", address, port)
 
-		face_tracker.setWholeBodyOn(False)
+		self.track.setWholeBodyOn(False)
 
 		# --- gaze analysis ---
 		self.gaze = ALProxy("ALGazeAnalysis", address, port)
@@ -229,6 +230,14 @@ class Robot(ALModule):
 			# exit(0)
 			return raw_input("What object were you thinking of?")
 
+	def wake(self):
+		"""
+		Turns stiffnesses on and goes to Crouch position
+		"""
+
+		self.motion.stiffnessInterpolation("Body", 1.0, 1.0)
+		self.pose.goToPosture("Crouch", 0.2)
+
 	def rest(self):
 		"""
 		Goes to Crouch position and turns robot stiffnesses off
@@ -236,7 +245,7 @@ class Robot(ALModule):
 
 		self.motion.rest()
 
-	def turnHead(yaw = None, pitch = None, speed = 0.3):
+	def turnHead(self, yaw = None, pitch = None, speed = 0.3):
 		"""
 		Turns robot head to the specified yaw and/or pitch in radians at the given speed.
 		Yaw can range from 119.5 deg (left) to -119.5 deg (right) and pitch can range from 38.5 deg (up) to -29.5 deg (down).
@@ -247,7 +256,54 @@ class Robot(ALModule):
 		if not pitch is None:
 			self.motion.setAngles("HeadPitch", pitch, speed)
 
-	def trackFace():
+	def colorEyes(self, color, fade_duration = 0.2):
+		"""
+		Fades eye LEDs to specified color over the given duration.
+		"Color" argument should be either in hex format (e.g. 0x0063e6c0) or one of the following
+		strings: pink, red, orange, yellow, green, blue, purple
+		"""
+
+		if color in self.colors:
+			color = colors[color]
+
+		self.leds.fadeRGB("FaceLeds", color, fade_duration)
+
+	def getHeadAngles(self):
+		"""
+		Returns current robot head angles as a list of yaw, pitch.
+		For yaw, from the robot's POV, left is positive and right is negative. For pitch, up is positive and down is negative.
+		See http://doc.aldebaran.com/2-1/family/robots/joints_robot.html for info on the range of its yaw and pitch.
+		"""
+
+		robot_head_yaw, robot_head_pitch = self.motion.getAngles("Head", False)
+
+		# return adjusted robot head angles
+		return [robot_head_yaw, -robot_head_pitch]
+
+	def resetEyes(self):
+		"""
+		Turns eye LEDs white.
+		"""
+
+		self.leds.on("FaceLeds")
+
+	def waitForSound(self, time_limit = 7):
+		"""
+		Waits until either a sound is detected or until the given time limit expires.
+		"""
+
+		self.sound.subscribe("sound_detection_client")
+
+		# give waiting a 7-second time limit
+		timeout = time.time() + 7
+
+		# check for new sounds every 0.2 seconds
+		while (self.mem.getData("SoundDetected")[0] != 1) and (time.time() < timeout):
+			time.sleep(0.2)
+
+		self.sound.unsubscribe("sound_detection_client")
+
+	def trackFace(self):
 		"""
 		Sets face tracker to just head and starts.
 		"""
@@ -256,7 +312,14 @@ class Robot(ALModule):
 		self.track.setWholeBodyOn(False)
 		self.track.startTracker()
 
-	def subscribeGaze():
+	def stopTrackingFace(self):
+		"""
+		Stops face tracker.
+		"""
+
+		self.track.stopTracker()
+
+	def subscribeGaze(self):
 		"""
 		Subscribes to gaze analysis module so that robot starts writing gaze data to memory.
 		Also sets the highest tolerance for determining if people are looking at the robot because those people's IDs are the only ones stored.
@@ -265,19 +328,19 @@ class Robot(ALModule):
 		self.gaze.subscribe("_")
 		self.gaze.setTolerance(1)
 
-	def getPeopleIDs():
+	def getPeopleIDs(self):
 		"""
 		Retrieves people IDs from robot memory. If list of IDs was empty, return None.
 		"""
 
 		people_ids = self.mem.getData("GazeAnalysis/PeopleLookingAtRobot")
 
-		if len(people_ids) == 0:
+		if people_ids is None or len(people_ids) == 0:
 			return None
 
 		return people_ids
 
-	def getRawPersonGaze(person_id):
+	def getRawPersonGaze(self, person_id):
 		"""
 		Returns person's gaze as a list of yaw (left -, right +) and pitch (up pi, down 0) in radians, respectively.
 		Bases gaze on both eye and head angles. Does not compensate for variable robot head position.
@@ -307,44 +370,33 @@ class Robot(ALModule):
 
 			return [person_gaze_yaw, person_gaze_pitch]
 
-
-	def colorEyes(self, color, fade_duration = 0.2):
+	def getPersonLocation(self, person_id):
 		"""
-		Fades eye LEDs to specified color over the given duration.
-		"Color" argument should be either in hex format (e.g. 0x0063e6c0) or one of the following
-		strings: pink, red, orange, yellow, green, blue, purple
+		Returns person's head location as a list of x, y (right of robot -, left of robot +), and z coordinates 
+		in meters relative to spot between robot's feet.
 		"""
+		
+		try:
+			person_location = self.mem.getData("PeoplePerception/Person/" + str(person_id) + "/PositionInRobotFrame")
 
-		if color in self.colors:
-			color = colors[color]
+		except RuntimeError:
+			# print "Couldn't get person's face location"
+			person_location = None
 
-		self.leds.fadeRGB("FaceLeds", color, fade_duration)
+		else:
+			return person_location
 
-	def resetEyes(self):
+	def unsubscribeGaze(self):
 		"""
-		Turns eye LEDs white.
-		"""
-
-		self.leds.on("FaceLeds")
-
-	def waitForSound(self, time_limit = 7):
-		"""
-		Waits until either a sound is detected or until the given time limit expires.
+		Unsubscribes from gaze analysis module so the robot stops writing gaze data to its memory.
 		"""
 
-		self.sound.subscribe("sound_detection_client")
-
-		# give waiting a 7-second time limit
-		timeout = time.time() + 7
-
-		# check for new sounds every 0.2 seconds
-		while (self.mem.getData("SoundDetected")[0] != 1) and (time.time() < timeout):
-			time.sleep(0.2)
-
-		self.sound.unsubscribe("sound_detection_client")
+		self.gaze.unsubscribe("_")
 
 #------------------------Main------------------------#
+
 if __name__ == "__main__":
+
 	print "#----------Audio Script----------#"
 
 	connect("bobby.local")
