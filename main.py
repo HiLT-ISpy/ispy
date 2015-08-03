@@ -16,7 +16,8 @@ class Main:
 
 		self.number_of_objects = 17 # placeholder until Jacob implements his image segmentation stuff
 		self.use_image_models = config.args.imagemodels # whether or not to use the image models
-		# using the image models takes a really long time but improves accuracy from 69% to (INSERT PERCENT HERE)
+		# using the image models takes a really long time (13 hours the last time I ran it) and they
+		# reduce the accuracy from 69% to 64%
 
 		if config.args.robot:
 			robot.connect(config.args.address)

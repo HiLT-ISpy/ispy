@@ -7,7 +7,6 @@ import speech_recognition as sr
 from naoqi import ALModule, ALProxy, ALBroker
 
 count = 0
-snd = None
 
 def connect(address="bobby.local", port=9559, name="r", brokername="broker"):
 	global broker
@@ -38,6 +37,7 @@ class Robot(ALModule):
 		self.audio.setClientPreferences(self.getName(), 48000, [1,1,1,1], 0, 0)
 
 		# --- speech recognition ---
+		self.sr = ALProxy("SoundReceiver", address, port)
 		self.asr = ALProxy("ALSpeechRecognition", address, port)
 		self.asr.setLanguage("English")
 
@@ -51,7 +51,7 @@ class Robot(ALModule):
 		self.object_vocab = {
 			"digital_clock": ["digital clock", "blue clock", "black alarm clock"],
 			"analog_clock": ["analog clock", "black clock", "black alarm clock"],
-			"red_soccer_ball": ["red soccer ball", "red ball"],
+			"red_soccer_ball": [u"red soccer ball", "red ball"],
 			"basketball": ["basketball", "orange ball"],
 			"football": ["football"],
 			"yellow_book": ["yellow book"],
@@ -60,7 +60,7 @@ class Robot(ALModule):
 			"apple": ["apple"],
 			"black_mug": ["black mug"],
 			"blue_book": ["blue book"],
-			"blue_flashlight": ["blue flashlight"],
+			"blue_flashlight": [u"blue flashlight"],
 			"cardboard_box": ["cardboard box"],
 			"pepper": ["pepper", "jalapeno"],
 			"green_mug": ["green mug"],
@@ -118,42 +118,6 @@ class Robot(ALModule):
 	def __del__(self):
 		print "End Robot Class"
 
-	def start(self):
-		print "Starting Transcriber"
-		self.audio.subscribe(self.getName())
-
-	def stop(self):
-		print "Stopping Transcriber"
-		self.audio.unsubscribe(self.getName())
-		if self.outfile != None:
-			self.outfile.close()
-
-	def processRemote(self, input_channels, input_samples, timestamp, input_buffer):
-		print "listening"
-		sound_data_interlaced = np.fromstring(str(input_buffer), dtype=np.int16)
-		sound_data = np.reshape(sound_data_interlaced, (input_channels, input_samples), 'F')
-		peak_value = np.max(sound_data)
-		print "got peak value"
-		if peak_value > 7500:
-			print "Peak:", peak_value
-			self.count = 30
-		print "subtracting count"
-		self.count -= 1
-		if self.count == 0:
-			print "STOP"*50
-			self.check = True
-		print "checked"
-		if self.outfile == None:
-			print "outfile was none"
-			filename = "output.raw"
-			self.outfile = open(filename, "wb")
-		if self.outfile.closed:
-			print "outfile was closed"
-			filename = "output.raw"
-			self.outfile = open(filename, "wb")
-		print self.outfile
-		sound_data[0].tofile(self.outfile)
-		print "sent data to outfile"
 
 	def say(self, text, block = True):
 		"""
@@ -180,58 +144,71 @@ class Robot(ALModule):
 		# global count
 		# count += 1
 		# print question
-		# return fake_answers[count]
+		# return fake_answers[count - 1]
 
-		self.say(question)
-		#starts listening for an answer
-		self.asr.subscribe("TEST_ASR")
-		data = (None, 0)
-		while not data[0]:
-			data = self.mem.getData("WordRecognized")
-		#stops listening after he hears yes or no
-		self.asr.unsubscribe("TEST_ASR")
-
-		print data
-
-		for word in self.yes_no_vocab:
-			for syn in self.yes_no_vocab[word]:
-				if data[0] == syn:
-					return word
+		# self.say(question)
+		# #starts listening for an answer
+		# self.asr.subscribe("TEST_ASR")
+		# data = (None, 0)
+		# while not data[0]:
+		# 	data = self.mem.getData("WordRecognized")
+		# #stops listening after he hears yes or no
+		# self.asr.unsubscribe("TEST_ASR")
+		#
+		# print data
+		#
+		# for word in self.yes_no_vocab:
+		# 	for syn in self.yes_no_vocab[word]:
+		# 		if data[0] == syn:
+		# 			return word
 
 	def ask_object(self):
-		self.start()
-		print "asking object"
-		while True:
-			if self.check:
-				break
-			time.sleep(1)
-		self.stop()
-		#uses sox to convert raw files to wav files
-		os.system("sox -r 48000 -e signed -b 16 -c 1 output.raw speech.wav")
-
-		r = sr.Recognizer()
-		with sr.WavFile("speech.wav") as source:
-			speech = r.record(source)
-		try:
-			possibilities = r.recognize(speech, True)
-			print possibilities
-			for possibility in possibilities:
-				for word in self.object_vocab:
-					for syn in self.object_vocab[word]:
-						if possibility["text"] == syn:
-							# global broker
-							# broker.shutdown()
-							# exit(0)
-							return possibility
-			raise LookupError
-		except LookupError:
-			self.say("I couldn't understand what you said. Please go to the computer and type the name of your object.")
-			print "Type the name of your object exactly as you see here."
-			print self.object_vocab.keys()
-			# global broker
-			# broker.shutdown()
-			# exit(0)
-			return raw_input("What object were you thinking of?")
+		# TODO: fix this so that speech recognition actually works
+		# right now it raises a LookupError every time
+		# self.sr.start_processing()
+		# print "asking object"
+		# while True:
+		# 	print "check:", self.sr.checking()
+		# 	if self.sr.checking():
+		# 		break
+		# 	time.sleep(.5)
+		# data = self.sr.stop_processing()
+		# print "converting to a numpy array"
+		# data = np.array(data)
+		# print "saving as a raw file"
+		# data.tofile(open("output.raw", "wb"))
+		# #uses sox to convert raw files to wav files
+		# print "converting to a wav file"
+		# os.system("sox -r 60000 -e signed -b 16 -c 1 output.raw speech.wav")
+		# print "converted"
+		# r = sr.Recognizer()
+		# with sr.WavFile("speech.wav") as source:
+		# 	print "listening to wav file"
+		# 	speech = r.record(source)
+		# try:
+		# 	print "gathering possibilities"
+		# 	possibilities = r.recognize(speech, True)
+		# 	print "possibilities:", possibilities
+		# 	for possibility in possibilities:
+		# 		for word in self.object_vocab:
+		# 			for syn in self.object_vocab[word]:
+		# 				if possibility["text"] == unicode(syn):
+		# 					# global broker
+		# 					# broker.shutdown()
+		# 					# exit(0)
+		# 					return possibility
+		# 	raise LookupError
+		# except LookupError:
+		# 	# self.say("I couldn't understand what you said. Please go to the computer and type the name of your object.")
+		# 	print "Type the name of your object exactly as you see here."
+		# 	print self.object_vocab.keys()
+		# 	# global broker
+		# 	# broker.shutdown()
+		# 	# exit(0)
+		# 	return raw_input("What object were you thinking of?")
+		self.say("What object were you thinking of?")
+		print self.object_vocab.keys()
+		return raw_input("Type the name of the object as seen above. ")
 
 	def wake(self):
 		"""

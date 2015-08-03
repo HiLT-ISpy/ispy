@@ -50,8 +50,10 @@ def ask(question_id, object_we_play, game, answers, pO, Pi, objects, number_of_o
 		N = objects[objectID][question_id-1][0]
 		D = objects[objectID][question_id-1][1]
 
+		# TODO: see if Dr. Nielsen has any suggestions for improving the use of the
+		# image models since they reduce the accuracy at the moment
+
 		if answer == 1:
-			# fancy math from Dr. Nielsen
 			K = probabilityD[T] + (N + 1)/(D + 2.0)
 			# if Pi is -1 then it means we're skipping the image models for that tag
 			if Pi[0][question_id-1] == -1:
