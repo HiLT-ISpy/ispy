@@ -40,6 +40,7 @@ class Main:
 			robot.robot().say("I see %d objects" % self.number_of_objects, False)
 			log.info("%d objects detected", self.number_of_objects)
 			self.number_of_objects = 17
+			robot.robot().rest()
 
 		# runtime does not include the time it took to run setup since it should only be run once
 		start = time.time()
@@ -72,7 +73,7 @@ class Main:
 			# TODO: make the number of games configurable??
 			game = Game(number)
 
-			game_wins, game_losses, game_num_questions, game_win_avg, game_lose_avg, game_answers, game_questions = game.playGame(self.number_of_objects)
+			game_wins, game_losses, game_num_questions, game_win_avg, game_lose_avg, game_answers, game_questions, quit = game.playGame(self.number_of_objects)
 
 			# dictionaries with complete list of questions asked and the corresponding answers
 			questions_asked[game.id] = game_questions
@@ -90,8 +91,8 @@ class Main:
 				models.build(game, 3, self.number_of_objects, questions_asked, question_answers)
 
 			if config.args.notsimulated:
-				quit = interface.ask("Would you like to stop playing completely? \nThere are %d games left. " % (30 - number))
-				if quit == "yes":
+				# quit = interface.ask("Would you like to stop playing completely? \nThere are %d games left. " % (30 - number))
+				if quit:
 					break
 
 		log.info("Overall Wins: %d Overall Losses: %d", wins, losses)

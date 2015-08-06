@@ -7,6 +7,7 @@ import speech_recognition as sr
 from naoqi import ALModule, ALProxy, ALBroker
 
 count = 0
+r = None
 
 def connect(address="bobby.local", port=9559, name="r", brokername="broker"):
 	global broker
@@ -27,10 +28,12 @@ def broker():
 class Robot(ALModule):
 	def __init__( self, strName, address = "bobby.local", port = 9559):
 		ALModule.__init__( self, strName )
-		self.outfile = None
-		self.outfiles = [None]*(3)
-		self.count = 99999999
-		self.check = False
+
+		# Are these used for anything?
+		# self.outfile = None
+		# self.outfiles = [None]*(3)
+		# self.count = 99999999
+		# self.check = False
 
 		# --- audio ---
 		self.audio = ALProxy("ALAudioDevice", address, port)
@@ -42,8 +45,8 @@ class Robot(ALModule):
 		self.asr.setLanguage("English")
 
 		self.yes_no_vocab = {
-			"yes": ["yes", "ya", "sure", "definitely"],
-			"no": ["no", "nope", "nah"]
+			True: ["yes", "ya", "sure", "definitely"],
+			False: ["no", "nope", "nah"]
 		}
 
 		# TODO: add unknown object names into this somehow
@@ -136,6 +139,9 @@ class Robot(ALModule):
 		Has the robot ask a question and returns the answer
 		"""
 
+		# use voice recognition to get response? (defaults to using keyboard)
+		voice_recognition = False
+
 		# If you're just trying to test voice detection, you can uncomment
 		# the following 5 lines. Bobby will guess "yellow flashlight" and will prompt
 		# you to correct him by saying "blue flashlight"
@@ -146,21 +152,34 @@ class Robot(ALModule):
 		# print question
 		# return fake_answers[count - 1]
 
-		# self.say(question)
-		# #starts listening for an answer
-		# self.asr.subscribe("TEST_ASR")
-		# data = (None, 0)
-		# while not data[0]:
-		# 	data = self.mem.getData("WordRecognized")
-		# #stops listening after he hears yes or no
-		# self.asr.unsubscribe("TEST_ASR")
-		#
-		# print data
-		#
-		# for word in self.yes_no_vocab:
-		# 	for syn in self.yes_no_vocab[word]:
-		# 		if data[0] == syn:
-		# 			return word
+		self.say(question)
+
+		if voice_recognition:
+
+			# still needs to be fixed I think, I just uncommented it
+
+			#starts listening for an answer
+			self.asr.subscribe("TEST_ASR")
+			data = (None, 0)
+			while not data[0]:
+				data = self.mem.getData("WordRecognized")
+			#stops listening after he hears yes or no
+			self.asr.unsubscribe("TEST_ASR")
+
+			print data
+
+			for answer in self.yes_no_vocab:
+				if data[0] in self.yes_no_vocab[answer]:
+					return answer
+
+		# Temporary clause for testing while speech recognition isn't working
+		else:
+			while True:
+				answer = raw_input(question).lower()[0]
+				if answer == "y":
+					return True
+				elif answer == "n":
+					return False
 
 	def ask_object(self):
 		# TODO: fix this so that speech recognition actually works
@@ -352,10 +371,10 @@ class Robot(ALModule):
 
 	def getPersonLocation(self, person_id):
 		"""
-		Returns person's head location as a list of x, y (right of robot -, left of robot +), and z coordinates 
+		Returns person's head location as a list of x, y (right of robot -, left of robot +), and z coordinates
 		in meters relative to spot between robot's feet.
 		"""
-		
+
 		try:
 			person_location = self.mem.getData("PeoplePerception/Person/" + str(person_id) + "/PositionInRobotFrame")
 

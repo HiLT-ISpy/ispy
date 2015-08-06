@@ -11,6 +11,7 @@ import config
 from robot import robot
 import interface
 
+# global variables to store constant values retrieved from database by functions
 _questions = []
 _descriptions = []
 
@@ -31,12 +32,10 @@ def ask(question_id, object_we_play, game, answers, pO, Pi, objects, number_of_o
 	if config.args.notsimulated:
 		answer = interface.ask(question + " ")
 
-		if answer == "yes":
-			answer = 1
-		elif answer == "no":
-			answer = 0
 	else:
-		answer = answer_data[game.id-1][object_we_play.id-1][question_id-1]
+		answer_game = answer_data[game.id-1]
+		answer_object = answer_game[object_we_play.id-1]
+		answer = answer_object[question_id-1]
 		print question, answer
 
 	if answer == 1:
@@ -88,7 +87,6 @@ def ask(question_id, object_we_play, game, answers, pO, Pi, objects, number_of_o
 		myfile.write(str(question_tag) + " -> " + str(answer)  + " \n")
 		myfile.write(str(pO) + "\n")
 
-	print answers
 	return pO, answers
 
 
@@ -171,7 +169,6 @@ def get_best(game, objects, asked_questions, pO, Pi, start, number_of_objects): 
 
 	return bestD
 
-
 def copy_into_answers():
 	"""
 	QuestionAnswers holds just the answer set data
@@ -180,15 +177,14 @@ def copy_into_answers():
 
 	log.info('Copying into answers')
 	db.cursor.execute('SELECT tag, answer, object from QuestionAnswers')
-	results = db.cursor.fetchall()
+	question_answers = db.cursor.fetchall()
 
-	for result in results:
-		db.cursor.execute('SELECT id from Tags where tag = %s', (result[0],))
+	for q_a in question_answers:
+		db.cursor.execute('SELECT id from Tags where tag = %s', (q_a[0],))
 		qid = db.cursor.fetchone()[0]
-		db.cursor.execute('INSERT INTO answers (qid, oid, answer) VALUES (%s, %s, %s)', (qid, result[2], result[1]))
+		db.cursor.execute('INSERT INTO answers (qid, oid, answer) VALUES (%s, %s, %s)', (qid, q_a[2], q_a[1]))
 
 	db.connection.commit()
-
 
 def build_pqd(number_of_objects):
 	"""
@@ -202,7 +198,7 @@ def build_pqd(number_of_objects):
 
 	all_tags = tags.get_all()
 
-	for objectID in range(1,number_of_objects + 1):
+	for objectID in range(1, number_of_objects + 1):
 		log.info("	Object %d", objectID)
 		for tag in range(0, 289):
 			db.cursor.execute('SELECT * FROM Descriptions WHERE description like "%' + all_tags[tag] + '%" AND objectID = ' + str(objectID))
@@ -218,11 +214,11 @@ def build_pqd(number_of_objects):
 			db.cursor.execute('SELECT * FROM QuestionAnswers WHERE tag = "' + all_tags[tag] + '" AND object = ' + str(objectID))
 			D = len(db.cursor.fetchall())
 
-			# D is the total number of times a tag/object pair has been asked (yesses and nos)
+			# D is the total number of times a tag/object pair has been asked (yes's and no's)
 
 			probabilityD[T] += count
 			denominator[T] += D
-		# For the T value based on th specific tag/object pair, update the probability of all tag/object pairs with the same T value
+			# For the T value based on th specific tag/object pair, update the probability of all tag/object pairs with the same T value
 
 	for freq in range(0,7):
 		# This puts the sum of the yes answers and the total answers into the row that corresponds with the T value
@@ -257,11 +253,9 @@ def get_tval():
 
 	db.cursor.execute('SELECT yes_answers/total_answers FROM Pqd')
 
-	result = db.cursor.fetchall()
+	raw_tvals = db.cursor.fetchall()
 
-	tvals = []
-	for r in result:
-		tvals.append(float(r[0]))
+	tvals = [float(tval[0]) for tval in raw_tvals]
 
 	return tvals
 
