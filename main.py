@@ -62,9 +62,9 @@ class Main:
 
 			# count objects
 			log.info("Robot is counting objects")
-			objects = robot.robot().count_objects()
-			self.object_angles = [obj.angle for obj in objects]
-			self.number_of_objects = len(objects)
+			self.object_angles = robot.robot().count_objects()
+			print self.object_angles
+			self.number_of_objects = len(self.object_angles)
 			robot.robot().say("I see %d objects" % self.number_of_objects, False)
 			log.info("%d objects detected", self.number_of_objects)
 			self.number_of_objects = 17
@@ -74,7 +74,7 @@ class Main:
 			robot.robot().wake()
 			time.sleep(0.5)
 			robot.robot().trackFace()
-			
+
 			if config.args.gaze:
 				time.sleep(0.5)
 				robot.robot().initGaze(self.object_angles)

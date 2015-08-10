@@ -179,9 +179,12 @@ class Robot(ALModule):
 		# Temporary clause for testing while speech recognition isn't working
 		else:
 			while True:
+				print question
 				if config.args.gaze:
-					self.trackGaze()
-				answer = raw_input(question).lower()[0]
+					timeout = time.time() + 1.5
+					while time.time() < timeout:
+						self.trackGaze()
+				answer = raw_input().lower()[0]
 				if answer == "y":
 					return True
 				elif answer == "n":
@@ -242,7 +245,7 @@ class Robot(ALModule):
 
 		self.motion.stiffnessInterpolation("Body", 1.0, 1.0)
 		self.pose.goToPosture("Crouch", 0.2)
-		robot.robot().turnHead(pitch = math.radians(-10))
+		self.turnHead(pitch = math.radians(-10))
 
 	def rest(self):
 		"""
@@ -345,7 +348,7 @@ class Robot(ALModule):
 		self.angle_error = math.radians(15)
 
 		# start writing gaze data to robot memory
-		self.subscribeGaze()
+		self.gaze.subscribe("_")
 
 	def updatePersonID(self):
 		"""
@@ -366,7 +369,7 @@ class Robot(ALModule):
 
 		self.person_id = people_ids[0]
 
-	def updateRawPersonGaze(self, person_id):
+	def updateRawPersonGaze(self):
 		"""
 		Stores person's gaze as a list of yaw (left -, right +) and pitch (up pi, down 0) in radians, respectively.
 		Bases gaze on both eye and head angles. Does not compensate for variable robot head position.
@@ -374,8 +377,8 @@ class Robot(ALModule):
 
 		try:
 			# retrieve GazeDirection and HeadAngles values
-			gaze_dir = self.mem.getData("PeoplePerception/Person/" + str(person_id) + "/GazeDirection")
-			head_angles =  self.mem.getData("PeoplePerception/Person/" + str(person_id) + "/HeadAngles")
+			gaze_dir = self.mem.getData("PeoplePerception/Person/" + str(self.person_id) + "/GazeDirection")
+			head_angles =  self.mem.getData("PeoplePerception/Person/" + str(self.person_id) + "/HeadAngles")
 
 			# extract gaze direction and head angles data
 			person_eye_yaw = gaze_dir[0]
@@ -606,11 +609,10 @@ class Robot(ALModule):
 		self.updateGazeObjectLocation()
 		self.updateConfidences()
 
-	# def analyzeGaze(self):
-	#
-	#	 self.unsubscribeGaze()
-	#	 self.normalizeConfidences()
-	#	 self.guess() MISSING GUESS FUNCTION
+	def analyzeGaze(self):
+
+		 self.unsubscribeGaze()
+		 self.normalizeConfidences()
 
 	def count_objects(self):
 		objects = self.segmentation.look_for_objects()

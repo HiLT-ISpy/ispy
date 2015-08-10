@@ -29,21 +29,26 @@ class Object:
 		answer_data = get_all_answers(number_of_objects)
 		NoOfQuestions = 0
 
-		#at the very beginning of a round, each object has an equal chance of getting picked
+		# at the very beginning of a round, each object has an equal chance of getting picked
 		pO = np.array([1/float(number_of_objects)] * number_of_objects)
 
 		askedQuestions = []
 		answers = []
 		split = 0
 
+		difference_threshold = 0.15
+
 		# while the best guess is less than 15% probability away from the 2nd-best guess and we've asked fewer than 15 questions
-		while np.sort(pO)[pO.size - 1] - np.sort(pO)[pO.size - 2] < 0.15 and len(askedQuestions) < 15:
+		while np.sort(pO)[pO.size - 1] - np.sort(pO)[pO.size - 2] < difference_threshold and len(askedQuestions) < 15:
 			# Find best question (aka gives most info)
 			best_question = questions.get_best(game, objects, askedQuestions, pO, Pi, split, number_of_objects)
 			# Save under questions already asked
 			askedQuestions.append(best_question)
 			# Ask question and update probabilies based on the answer
 			pO, answers = questions.ask(best_question, self, game, answers, pO, Pi, objects, number_of_objects, answer_data)
+			if config.args.robot:
+				robot().analyzeGaze()
+
 			# Split the current subset into two more subsets
 			split = questions.get_subset_split(pO, number_of_objects)
 		log.info('Finished asking %d questions', len(askedQuestions))
