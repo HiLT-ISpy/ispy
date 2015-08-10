@@ -26,8 +26,8 @@ def ask(question_id, object_we_play, game, answers, pO, Pi, objects, number_of_o
 
 	# gets the correct question for the given tag
 	question_tag = tags.get(question_id)
-	quests = tags.get_questions()
-	question = quests[question_id - 1]
+	questions = tags.get_questions()
+	question = questions[question_id - 1]
 
 	if config.args.notsimulated:
 		answer = interface.ask(question + " ")
@@ -90,7 +90,7 @@ def ask(question_id, object_we_play, game, answers, pO, Pi, objects, number_of_o
 	return pO, answers
 
 
-def get_best(game, objects, asked_questions, pO, Pi, start, number_of_objects): #p_tags
+def get_best(game, objects, asked_questions, pO, Pi, start, number_of_objects):
 	"""
 	Finds the question that best splits our current subset of objects
 	"""
@@ -113,11 +113,9 @@ def get_best(game, objects, asked_questions, pO, Pi, start, number_of_objects): 
 	# Objects below the index are still updated when the question is asked and can shift back into play, but decisions are not made based on them while they're below start
 	pO_sorted = np.argsort(pO)
 	objects_considered = pO_sorted[start:]
-	for i in range(0,len(objects_considered)):
-		objects_considered[i] += 1
 
-	# Look over all tags
-	for j in range(1, 290):
+	# Look over all tags/potential questions
+	for q in range(289):
 		yes = 0
 		no = 0
 
@@ -128,19 +126,19 @@ def get_best(game, objects, asked_questions, pO, Pi, start, number_of_objects): 
 		pi_given_no_times_log = 0
 
 		# Don't reask questions
-		if j not in asked_questions:
+		if q not in asked_questions:
 			# Only look at objects in the correct subset
-			for i in objects_considered:
+			for obj in objects_considered:
 
-				T = get_t(i, j, number_of_objects)
-				num_yes = objects[i-1][j-1][0]
-				length = objects[i-1][j-1][1]
-				if Pi[i-1][j-1] == -1:
-					probabilities_yes[i-1] = pO[i-1] * (tvals[T] + (num_yes + 1.0)/(length + 2.0)) / 2
-					probabilities_no[i-1] = pO[i-1] * ((1 - tvals[T]) + (length - num_yes + 1.0)/(length + 2.0)) / 2
+				T = get_t(obj+1, q+1, number_of_objects) # add 1 to object and question indices to change from 0-16 -> 1-17
+				num_yes = objects[obj][q][0]
+				length = objects[obj][q][1]
+				if Pi[obj][q] == -1:
+					probabilities_yes[obj] = pO[obj] * (tvals[T] + (num_yes + 1.0)/(length + 2.0)) / 2
+					probabilities_no[obj] = pO[obj] * ((1 - tvals[T]) + (length - num_yes + 1.0)/(length + 2.0)) / 2
 				else:
-					probabilities_yes[i-1] = pO[i-1] * (tvals[T] + (num_yes + 1.0)/(length + 2.0) + Pi[i-1][j-1]) / 3
-					probabilities_no[i-1] = pO[i-1] * ((1 - tvals[T]) + (length - num_yes + 1.0)/(length + 2.0) + 1 - Pi[i-1][j-1]) / 3
+					probabilities_yes[obj] = pO[obj] * (tvals[T] + (num_yes + 1.0)/(length + 2.0) + Pi[obj][q]) / 3
+					probabilities_no[obj] = pO[obj] * ((1 - tvals[T]) + (length - num_yes + 1.0)/(length + 2.0) + 1 - Pi[obj][q]) / 3
 
 			# Normalize the probabilities
 			probabilities_yes = np.asarray(probabilities_yes)
@@ -149,22 +147,22 @@ def get_best(game, objects, asked_questions, pO, Pi, start, number_of_objects): 
 			probabilities_no = probabilities_no / sum(probabilities_no)
 
 			# Do some fancy math to find out which tag lowers total entropy the most (AKA it gives us the most knowledge)
-			for i in objects_considered:
-				num_yes = objects[i-1][j-1][0]
-				length = objects[i-1][j-1][1]
+			for obj in objects_considered:
+				num_yes = objects[obj][q][0]
+				length = objects[obj][q][1]
 
-				p_for_yes += pO[i-1] * num_yes / length
-				p_for_no += pO[i-1] * (length - num_yes) / length
+				p_for_yes += pO[obj] * num_yes / length
+				p_for_no += pO[obj] * (length - num_yes) / length
 
-				yes  += probabilities_yes[i-1]
-				no += probabilities_no[i-1]
+				yes  += probabilities_yes[obj]
+				no += probabilities_no[obj]
 
-				pi_given_yes_times_log += probabilities_yes[i-1] * math.log(probabilities_yes[i-1], 2)
-				pi_given_no_times_log += probabilities_no[i-1] * math.log(probabilities_no[i-1], 2)
+				pi_given_yes_times_log += probabilities_yes[obj] * math.log(probabilities_yes[obj], 2)
+				pi_given_no_times_log += probabilities_no[obj] * math.log(probabilities_no[obj], 2)
 
 			entropy = -p_for_yes * pi_given_yes_times_log - p_for_no * pi_given_no_times_log
 			if entropy < bestDifference:
-				bestD = j
+				bestD = q+1 # add one to change index from 0-16 -> 1-17
 				bestDifference = entropy
 
 	return bestD

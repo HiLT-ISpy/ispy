@@ -38,9 +38,12 @@ class Game:
 		question_answers = {}
 		questions_asked = {}
 		objlist = objects.get_all()
-		# For each object in the set
 		count = 0
 
+		# quit variable passed to main that tells if user wants to quit
+		quit = False
+
+		# For each object in the set
 		for i in objlist:
 			if config.args.notsimulated:
 				for j in range(len(objlist)):
