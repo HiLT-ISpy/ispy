@@ -7,7 +7,7 @@ config = None
 
 class Main:
 
-	def __init__(self):
+	def __init__(self, thresh, f):
 		"""
 		Entry point of the simulation
 		"""
@@ -36,12 +36,12 @@ class Main:
 
 		# runtime does not include the time it took to run setup since it should only be run once
 		start = time.time()
-		self.simulate()
+		self.simulate(thresh, f)
 		end = time.time()
 
 		log.info('Simulation complete! (Took %ds)', int(end - start))
 
-	def simulate(self):
+	def simulate(self, thresh, f):
 		"""
 		Run the simulation
 		"""
@@ -63,10 +63,13 @@ class Main:
 			# count objects
 			log.info("Robot is counting objects")
 			self.object_angles = robot.robot().count_objects()
-			print self.object_angles
+			for obj in self.object_angles:
+				print "OBJECT"
+				print "\t", obj
 			self.number_of_objects = len(self.object_angles)
 			robot.robot().say("I see %d objects" % self.number_of_objects, False)
 			log.info("%d objects detected", self.number_of_objects)
+			# log.info("Objects detected at the following angles: " + str(self.object_angles))
 			self.number_of_objects = 17
 			robot.robot().rest()
 
@@ -83,7 +86,7 @@ class Main:
 			# TODO: make the number of games configurable??
 			game = Game(number)
 
-			game_wins, game_losses, game_num_questions, game_win_avg, game_lose_avg, game_answers, game_questions, quit = game.playGame(self.number_of_objects)
+			game_wins, game_losses, game_num_questions, game_win_avg, game_lose_avg, game_answers, game_questions, quit = game.playGame(self.number_of_objects, thresh)
 
 			# dictionaries with complete list of questions asked and the corresponding answers
 			questions_asked[game.id] = game_questions
@@ -107,10 +110,14 @@ class Main:
 
 		log.info("Overall Wins: %d Overall Losses: %d", wins, losses)
 		log.info("Overall Accuracy: %d%%", int((float(wins)/(wins + losses)) * 100))
+		f.write("Threshold: " + str(thresh) + '\n')
+		f.write("\tOverall accuracy: " + str(int((float(wins)/(wins + losses)) * 100)) + '\n')
 		if wins != 0:
 			log.info("Average number of questions for a win: %.2f", float(avg_win)/wins)
+			f.write("\tAvg Q's for win: " + str(float(avg_win)/wins) + '\n')
 		if losses != 0:
 			log.info("Average number of questions for a loss: %.2f", float(avg_lose)/losses)
+			f.write("\tAvg Q's for loss: " + str(float(avg_lose)/wins) + '\n')
 
 		if config.args.robot:
 			# TODO: remove this when we fix the robot class
@@ -201,4 +208,9 @@ if __name__ == '__main__':
 	import robot
 	import interface
 	import gaze
-	Main()
+
+	diff_thresholds = [0.05, 0.2, 0.5, 0.05, 0.5, 0.2]
+	f = open('data.txt', 'w')
+	for thresh in diff_thresholds:
+		Main(thresh, f)
+	f.close()

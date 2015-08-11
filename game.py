@@ -13,7 +13,7 @@ class Game:
 	Main class that handles game logic
 	"""
 
-	def playGame(self, number_of_objects):
+	def playGame(self, number_of_objects, thresh):
 		"""
 		Play the game
 		"""
@@ -52,7 +52,7 @@ class Game:
 				time.sleep(2.5)
 			#TODO: ask if the person is ready???
 
-			result, number_of_questions, answers, askedQuestions = i.playObject(self, Pi, number_of_objects)
+			result, number_of_questions, answers, askedQuestions = i.playObject(self, Pi, number_of_objects, thresh)
 			log.info("Game %d, object %d complete, updating stats", self.id, i.id)
 
 			#averages are calculated later (in main) using these sums

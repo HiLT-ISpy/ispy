@@ -17,7 +17,7 @@ _answers = []
 
 class Object:
 
-	def playObject(self, game, Pi, number_of_objects):
+	def playObject(self, game, Pi, number_of_objects, thresh):
 		"""
 		Play this object
 		"""
@@ -36,7 +36,7 @@ class Object:
 		answers = []
 		split = 0
 
-		difference_threshold = 0.15
+		difference_threshold = thresh
 
 		# while the best guess is less than 15% probability away from the 2nd-best guess and we've asked fewer than 15 questions
 		while np.sort(pO)[pO.size - 1] - np.sort(pO)[pO.size - 2] < difference_threshold and len(askedQuestions) < 15:
