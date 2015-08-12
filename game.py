@@ -45,6 +45,8 @@ class Game:
 
 		# For each object in the set
 		for i in objlist:
+			robot().initGazeCounts()
+
 			if config.args.notsimulated:
 				for j in range(len(objlist)):
 					print objlist[j].name

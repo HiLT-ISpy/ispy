@@ -1,7 +1,10 @@
 import os
 import time
+import sys
+import math
 import logging as log
 import argparse
+import traceback
 
 config = None
 
@@ -60,27 +63,33 @@ class Main:
 
 		if robot.robot():
 
-			# count objects
-			log.info("Robot is counting objects")
-			self.object_angles = robot.robot().count_objects()
-			for obj in self.object_angles:
-				print "OBJECT"
-				print "\t", obj
-			self.number_of_objects = len(self.object_angles)
-			robot.robot().say("I see %d objects" % self.number_of_objects, False)
-			log.info("%d objects detected", self.number_of_objects)
-			# log.info("Objects detected at the following angles: " + str(self.object_angles))
-			self.number_of_objects = 17
-			robot.robot().rest()
+			# # count objects
+			# log.info("Robot is counting objects")
+			# self.object_angles = robot.robot().count_objects()
+			# for obj in self.object_angles:
+			# 	print "OBJECT"
+			# 	print "\t", obj
+			# self.number_of_objects = len(self.object_angles)
+			# robot.robot().say("I see %d objects" % self.number_of_objects, False)
+			# log.info("%d objects detected", self.number_of_objects)
+			# # log.info("Objects detected at the following angles: " + str(self.object_angles))
+			# self.number_of_objects = 17
+			# robot.robot().rest()
+
+			# temporary manual input of object angles (obj 1 -> obj 17 from robot's right to left in 2 staggered rows)
+			# self.object_angles = [[index * 0.123 - math.pi/3, 0] for index in range(17)]
+
+			raw_angles = [-54]*3 + [-36]*3 + [-18]*3 + [18]*3 + [36]*3 + [54]*2
+			self.object_angles = [[math.radians(angle), 0] for angle in raw_angles]
 
 			# start face tracking and initialize gaze tracking
-			robot.robot().wake()
+			robot.robot().wake(0.7)
 			time.sleep(0.5)
 			robot.robot().trackFace()
 
 			if config.args.gaze:
 				time.sleep(0.5)
-				robot.robot().initGaze(self.object_angles)
+				robot.robot().recordObjectAngles(self.object_angles)
 				robot.robot().findPersonPitchAdjustment()
 
 		for number in range(16, 31):
@@ -119,6 +128,7 @@ class Main:
 		if config.args.robot:
 			# TODO: remove this when we fix the robot class
 			robot.robot().stopTrackingFace()
+			robot.robot().gaze.unsubscribe("_")
 			robot.robot().rest()
 			robot.broker.shutdown()
 
@@ -205,6 +215,10 @@ if __name__ == '__main__':
 	import database as db
 	import robot
 	import interface
-	import gaze
 
-	Main()
+	try:
+		Main()
+
+	except Exception as e:
+		print traceback.format_exc()
+		robot.robot().rest()

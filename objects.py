@@ -46,8 +46,19 @@ class Object:
 			askedQuestions.append(best_question)
 			# Ask question and update probabilies based on the answer
 			pO, answers = questions.ask(best_question, self, game, answers, pO, Pi, objects, number_of_objects, answer_data)
-			if config.args.robot:
-				robot().analyzeGaze()
+			if config.args.gaze:
+				gaze_confidences = robot().gazeConfidences()
+
+				gaze_weight = 0.7
+				print "pO:",
+				for p in pO:
+					print round(p, 2) * 100, ' ',
+				print
+				pO = np.array([(question_prob * (1 - gaze_weight)) + (question_prob * gaze_prob * gaze_weight) for question_prob, gaze_prob in zip(pO, gaze_confidences)])
+				print "Gp:",
+				for p in pO:
+					print round(p, 2) * 100, ' ',
+				print
 
 			# Split the current subset into two more subsets
 			split = questions.get_subset_split(pO, number_of_objects)

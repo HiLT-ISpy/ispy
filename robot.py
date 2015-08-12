@@ -98,6 +98,10 @@ class Robot(ALModule):
 
 		# --- gaze analysis ---
 		self.gaze = ALProxy("ALGazeAnalysis", address, port)
+		# set highest tolerance for determining if people are looking at the robot because those people's IDs are the only ones stored
+		self.gaze.setTolerance(1)
+		# start writing gaze data to robot memory
+		self.gaze.subscribe("_")
 
 		# --- camera ---
 		self.cam = ALProxy("ALVideoDevice", address, port)
@@ -181,8 +185,8 @@ class Robot(ALModule):
 			while True:
 				print question
 				if config.args.gaze:
-					timeout = time.time() + 1.5
-					while time.time() < timeout:
+					timeout = time.time() + 0.5
+					while not self.personLookingAtRobot() or time.time() < timeout:
 						self.trackGaze()
 				answer = raw_input().lower()[0]
 				if answer == "y":
@@ -238,14 +242,21 @@ class Robot(ALModule):
 		print self.object_vocab.keys()
 		return raw_input("Type the name of the object as seen above. ")
 
-	def wake(self):
+	def wake(self, stiffness = 1.0):
 		"""
 		Turns stiffnesses on, goes to Crouch position, and lifts head
 		"""
 
-		self.motion.stiffnessInterpolation("Body", 1.0, 1.0)
+		self.motion.stiffnessInterpolation("Body", stiffness, 1.0)
 		self.pose.goToPosture("Crouch", 0.2)
 		self.turnHead(pitch = math.radians(-10))
+
+	def sit(self):
+		"""
+		Goes to Crouch position
+		"""
+
+		self.pose.goToPosture("Crouch")
 
 	def rest(self):
 		"""
@@ -328,18 +339,14 @@ class Robot(ALModule):
 
 		self.track.stopTracker()
 
-	def initGaze(self, object_angles):
+	def recordObjectAngles(self, object_angles):
 
 		# initialize confidences for each object
-		object_yaws, object_pitches = zip(*object_angles)
-		self.gaze_confidences = dict.fromkeys(object_yaws, 0)
+		self.object_yaws, self.object_pitches = zip(*object_angles)
 		self.angle_error = math.radians(15)
 
-		# set highest tolerance for determining if people are looking at the robot because those people's IDs are the only ones stored
-		self.gaze.setTolerance(1)
-
-		# start writing gaze data to robot memory
-		self.gaze.subscribe("_")
+	def initGazeCounts(self):
+		self.gaze_counts = [[yaw, 0] for yaw in self.object_yaws]
 
 	def updatePersonID(self):
 		"""
@@ -432,8 +439,6 @@ class Robot(ALModule):
 
 		self.updatePersonID()
 
-		eye_contact = False
-
 		self.colorEyes("blue")
 
 		# try get person's attention then wait until they look at us (robot)
@@ -448,10 +453,10 @@ class Robot(ALModule):
 
 		# finish talking and add to pitch sum while talking
 		self.say("Are you ready to play?", block = False)
+		self.colorEyes("purple")
 		self.pitchSumOverTime(1)
 
-		self.colorEyes("purple")
-
+		print "# pitch readings:", self.pitch_count
 		control_pitch = self.pitch_sum / self.pitch_count
 
 		# the pitch adjustment we need to make is the difference between (the measured value at 90 degrees) and (90 degrees)
@@ -485,6 +490,7 @@ class Robot(ALModule):
 			self.person_gaze_pitch += self.person_pitch_adjustment
 
 			self.person_gaze = [self.person_gaze_yaw, self.person_gaze_pitch]
+			print "person gaze:", self.person_gaze
 
 	def updatePersonLocation(self):
 		"""
@@ -520,14 +526,17 @@ class Robot(ALModule):
 
 		# threshold angle equals atan of x distance between person + robot divided by person's height
 		threshold_angle = math.atan(self.robot_person_x / self.robot_person_z)
+		print "threshold angle:", threshold_angle
 
 		# if person is looking in the area of the objects (gaze pitch < angle to look at robot's feet)
 		if self.person_gaze_pitch < threshold_angle:
+			self.colorEyes("pink")
 			return True
 
+		self.colorEyes("green")
 		return False
 
-	def updateGazeObjectLocation(self, debug = False):
+	def updateGazeObjectLocation(self, debug = True):
 		"""
 		Stores location of gaze relative to spot between robot's feet as a list of x, y, z in meters and yaw, pitch in radians.
 		If the person is not looking near the objects, returns None.
@@ -559,7 +568,7 @@ class Robot(ALModule):
 
 			self.gaze_object_location = [robot_object_x, robot_object_y, robot_object_z, self.robot_object_yaw, self.robot_object_pitch]
 
-	def updateGazeConfidences(self, debug = False):
+	def updateGazeCounts(self, debug = False):
 		"""
 		Determines which object(s) the person is gazing at and adds to the count for those objects.
 		These counts are stored in dictionary self.confidences as {object angle: confidence, ..., object angle: confidence}.
@@ -567,45 +576,41 @@ class Robot(ALModule):
 
 		if not self.gaze_object_location is None:
 
-			for object_angle in self.gaze_confidences:
+			for index, [obj_yaw, count] in enumerate(self.gaze_counts):
 
 				# if gaze angle is within object_angle_error of the object angle on either side
-				if abs(object_angle - self.robot_object_yaw) <= self.angle_error:
+				if abs(obj_yaw - self.robot_object_yaw) <= self.angle_error:
 
-					# add 1 to the confidence for that object
-					self.gaze_confidences[object_angle] += 1
+					# add 1 to the count (index 1) for that object
+					self.gaze_counts[index][1] += 1
 
 					if debug:
-						print "\t", math.degrees(object_angle),
+						print "\t", math.degrees(obj_yaw),
 
 			if debug:
 				print
 
-	def normalizeGazeConfidences(self):
+	def gazeConfidences(self):
 		"""
 		Divides the confidence (gaze count) for each object by the sum of all objects' gaze counts,
 		so that the confidences sum to 100%.
 		"""
 
-		print "Object counts:", [[round(angle, 3), self.gaze_confidences[angle]] for angle in self.gaze_confidences]
+		print "Object counts:", [[round(obj_yaw, 2), count] for obj_yaw, count in self.gaze_counts]
 
-		confidence_sum = sum(self.gaze_confidences.values())
+		confidence_sum = sum([confidence for obj_yaw, confidence in self.gaze_counts])
 
 		# if we at least got some data
 		if confidence_sum != 0:
+			return [count / confidence_sum for obj_angle, count in self.gaze_counts]
+			print [count / confidence_sum for obj_angle, count in self.gaze_counts]
 
-			for object_angle in self.gaze_confidences:
-				self.gaze_confidences[object_angle] /= confidence_sum
+		return [1] * len(self.gaze_counts)
 
 	def trackGaze(self):
 
 		self.updateGazeObjectLocation()
-		self.updateGazeConfidences()
-
-	def analyzeGaze(self):
-
-		# self.gaze.unsubscribe("_")
-		self.normalizeGazeConfidences()
+		self.updateGazeCounts()
 
 	def count_objects(self):
 		objects = self.segmentation.look_for_objects()
