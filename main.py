@@ -7,7 +7,7 @@ config = None
 
 class Main:
 
-	def __init__(self, thresh, f):
+	def __init__(self):
 		"""
 		Entry point of the simulation
 		"""
@@ -36,12 +36,12 @@ class Main:
 
 		# runtime does not include the time it took to run setup since it should only be run once
 		start = time.time()
-		self.simulate(thresh, f)
+		self.simulate()
 		end = time.time()
 
 		log.info('Simulation complete! (Took %ds)', int(end - start))
 
-	def simulate(self, thresh, f):
+	def simulate(self):
 		"""
 		Run the simulation
 		"""
@@ -81,12 +81,13 @@ class Main:
 			if config.args.gaze:
 				time.sleep(0.5)
 				robot.robot().initGaze(self.object_angles)
+				robot.robot().findPersonPitchAdjustment()
 
 		for number in range(16, 31):
 			# TODO: make the number of games configurable??
 			game = Game(number)
 
-			game_wins, game_losses, game_num_questions, game_win_avg, game_lose_avg, game_answers, game_questions, quit = game.playGame(self.number_of_objects, thresh)
+			game_wins, game_losses, game_num_questions, game_win_avg, game_lose_avg, game_answers, game_questions, quit = game.playGame(self.number_of_objects)
 
 			# dictionaries with complete list of questions asked and the corresponding answers
 			questions_asked[game.id] = game_questions
@@ -110,18 +111,15 @@ class Main:
 
 		log.info("Overall Wins: %d Overall Losses: %d", wins, losses)
 		log.info("Overall Accuracy: %d%%", int((float(wins)/(wins + losses)) * 100))
-		f.write("Threshold: " + str(thresh) + '\n')
-		f.write("\tOverall accuracy: " + str(int((float(wins)/(wins + losses)) * 100)) + '\n')
 		if wins != 0:
 			log.info("Average number of questions for a win: %.2f", float(avg_win)/wins)
-			f.write("\tAvg Q's for win: " + str(float(avg_win)/wins) + '\n')
 		if losses != 0:
 			log.info("Average number of questions for a loss: %.2f", float(avg_lose)/losses)
-			f.write("\tAvg Q's for loss: " + str(float(avg_lose)/wins) + '\n')
 
 		if config.args.robot:
 			# TODO: remove this when we fix the robot class
 			robot.robot().stopTrackingFace()
+			robot.robot().rest()
 			robot.broker.shutdown()
 
 	def setup(self):
@@ -209,8 +207,4 @@ if __name__ == '__main__':
 	import interface
 	import gaze
 
-	diff_thresholds = [0.05, 0.2, 0.5, 0.05, 0.5, 0.2]
-	f = open('data.txt', 'w')
-	for thresh in diff_thresholds:
-		Main(thresh, f)
-	f.close()
+	Main()

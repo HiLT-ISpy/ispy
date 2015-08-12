@@ -17,7 +17,7 @@ _answers = []
 
 class Object:
 
-	def playObject(self, game, Pi, number_of_objects, thresh):
+	def playObject(self, game, Pi, number_of_objects):
 		"""
 		Play this object
 		"""
@@ -36,7 +36,7 @@ class Object:
 		answers = []
 		split = 0
 
-		difference_threshold = thresh
+		difference_threshold = 0.15
 
 		# while the best guess is less than 15% probability away from the 2nd-best guess and we've asked fewer than 15 questions
 		while np.sort(pO)[pO.size - 1] - np.sort(pO)[pO.size - 2] < difference_threshold and len(askedQuestions) < 15:
@@ -70,9 +70,9 @@ class Object:
 
 	def gen_init_prob(self, number_of_objects):
 		"""
-		Fetches the proportions of yes answers
-		Returns a list containing sub-lists, each corresponding to an object
-		Each sub-list contains 289 tuples, one per question
+		Fetches proportions of yes answers for question/object combos
+		Returns a list containing a sublist for each object
+		Each object's sub-list contains 289 tuples, one for each question
 		Each tuple is in the form of (yes_answers, total_answers)
 		"""
 
@@ -142,6 +142,7 @@ class Object:
 			log.info('Lose [Guess: %s | Actual: %s]', guess.name, self.name)
 			return 0
 
+
 	def __init__(self, id, name):
 		# assigns an ID as a placeholder because we can't read the person's mind
 		# in order to assign an id for the purposes of initialization
@@ -158,6 +159,7 @@ def get(object_id):
 
 	return get_all()[object_id-1]
 
+
 def get_all():
 	"""
 	Returns a list of all objects
@@ -170,6 +172,7 @@ def get_all():
 		for obj in db.cursor.fetchall():
 			_objects.append(Object(obj[0], obj[1]))
 	return _objects
+
 
 def get_actual(guess):
 	"""
@@ -203,6 +206,7 @@ def get_actual(guess):
 			obj_name = raw_input("It seems as though you mistyped. Please try typing the name of your object again. ")
 
 	return obj_id, obj_name
+
 
 def get_all_answers(number_of_objects):
 	"""

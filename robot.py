@@ -273,7 +273,7 @@ class Robot(ALModule):
 		"""
 
 		if color in self.colors:
-			color = colors[color]
+			color = self.colors[color]
 
 		self.leds.fadeRGB("FaceLeds", color, fade_duration)
 
@@ -328,24 +328,15 @@ class Robot(ALModule):
 
 		self.track.stopTracker()
 
-	def unsubscribeGaze(self):
-		"""
-		Unsubscribes from gaze analysis module so the robot stops writing gaze data to its memory.
-		"""
+	def initGaze(self, object_angles):
 
-		self.gaze.unsubscribe("_")
-
-	def initGaze(self, object_yaws):
-
-		# subscribe to gaze analysis module so that robot starts writing gaze data to memory
-		self.gaze.subscribe("_")
+		# initialize confidences for each object
+		object_yaws, object_pitches = zip(*object_angles)
+		self.gaze_confidences = dict.fromkeys(object_yaws, 0)
+		self.angle_error = math.radians(15)
 
 		# set highest tolerance for determining if people are looking at the robot because those people's IDs are the only ones stored
 		self.gaze.setTolerance(1)
-
-		# initialize confidences for each object
-		self.gaze_confidences = dict.fromkeys(object_yaws, 0)
-		self.angle_error = math.radians(15)
 
 		# start writing gaze data to robot memory
 		self.gaze.subscribe("_")
@@ -421,12 +412,13 @@ class Robot(ALModule):
 
 		timeout = time.time() + duration
 		while time.time() < timeout:
-			self.updateRawPersonGaze()
 
 			if self.personLookingAtRobot():
 				# add current pitch to pitch sum
 				self.pitch_sum += self.raw_person_gaze_pitch
 				self.pitch_count += 1
+
+			self.updateRawPersonGaze()
 
 	def findPersonPitchAdjustment(self, person_name = "Person", style = "normal"):
 		"""
@@ -501,7 +493,7 @@ class Robot(ALModule):
 		"""
 
 		try:
-			self.person_location = self.mem.getData("PeoplePerception/Person/" + str(person_id) + "/PositionInRobotFrame")
+			self.person_location = self.mem.getData("PeoplePerception/Person/" + str(self.person_id) + "/PositionInRobotFrame")
 
 		except RuntimeError:
 			# print "Couldn't get person's face location"
@@ -544,27 +536,28 @@ class Robot(ALModule):
 		if not self.personLookingAtObjects():
 			self.gaze_object_location = None
 
-		# calculate x distance between robot and object
-		person_object_x = self.robot_person_z * math.tan(self.person_gaze_pitch)
-		robot_object_x = self.robot_person_x - person_object_x
+		else:
+			# calculate x distance between robot and object
+			person_object_x = self.robot_person_z * math.tan(self.person_gaze_pitch)
+			robot_object_x = self.robot_person_x - person_object_x
 
-		# calculate y distance between robot and object (left of robot +, right of robot -)
-		person_object_y = person_object_x * math.tan(self.person_gaze_yaw)
-		robot_object_y = self.robot_person_y + person_object_y
+			# calculate y distance between robot and object (left of robot +, right of robot -)
+			person_object_y = person_object_x * math.tan(self.person_gaze_yaw)
+			robot_object_y = self.robot_person_y + person_object_y
 
-		# calculate robot head yaw needed to gaze at object
-		self.robot_object_yaw = math.atan(robot_object_y / robot_object_x)
+			# calculate robot head yaw needed to gaze at object
+			self.robot_object_yaw = math.atan(robot_object_y / robot_object_x)
 
-		robot_object_z = 0
-		self.robot_object_pitch = 0
+			robot_object_z = 0
+			self.robot_object_pitch = 0
 
-		if debug:
-			print "\tperson gaze:", [math.degrees(angle) for angle in self.person_gaze]
-			print "\tperson loc:", self.person_location
-			print "\tpers obj x", person_object_x
-			print "\tpers obj y", person_object_y
+			if debug:
+				print "\tperson gaze:", [math.degrees(angle) for angle in self.person_gaze]
+				print "\tperson loc:", self.person_location
+				print "\tpers obj x", person_object_x
+				print "\tpers obj y", person_object_y
 
-		self.gaze_object_location = [robot_object_x, robot_object_y, robot_object_z, self.robot_object_yaw, self.robot_object_pitch]
+			self.gaze_object_location = [robot_object_x, robot_object_y, robot_object_z, self.robot_object_yaw, self.robot_object_pitch]
 
 	def updateGazeConfidences(self, debug = False):
 		"""
@@ -607,12 +600,12 @@ class Robot(ALModule):
 	def trackGaze(self):
 
 		self.updateGazeObjectLocation()
-		self.updateConfidences()
+		self.updateGazeConfidences()
 
 	def analyzeGaze(self):
 
-		 self.unsubscribeGaze()
-		 self.normalizeConfidences()
+		# self.gaze.unsubscribe("_")
+		self.normalizeGazeConfidences()
 
 	def count_objects(self):
 		objects = self.segmentation.look_for_objects()
