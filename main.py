@@ -221,4 +221,5 @@ if __name__ == '__main__':
 
 	except Exception as e:
 		print traceback.format_exc()
-		robot.robot().rest()
+		if config.args.robot:
+			robot.robot().rest()

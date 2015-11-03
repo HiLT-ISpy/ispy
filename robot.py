@@ -414,11 +414,12 @@ class Robot(ALModule):
 	def pitchSumOverTime(self, duration):
 		"""
 		Adds pitch value to a sum every time person looks at robot during the given duration.
+        Even if duration expires, continues waiting until it gets at least one pitch value.
 		Both this sum and the number of times the sum was added to are member variables.
 		"""
 
 		timeout = time.time() + duration
-		while time.time() < timeout:
+		while time.time() < timeout or self.pitch_count == 0:
 
 			if self.personLookingAtRobot():
 				# add current pitch to pitch sum
@@ -555,7 +556,7 @@ class Robot(ALModule):
 			robot_object_y = self.robot_person_y + person_object_y
 
 			# calculate robot head yaw needed to gaze at object
-			self.robot_object_yaw = math.atan(robot_object_y / robot_object_x)
+			self.robot_object_yaw = - math.atan(robot_object_y / robot_object_x)
 
 			robot_object_z = 0
 			self.robot_object_pitch = 0
