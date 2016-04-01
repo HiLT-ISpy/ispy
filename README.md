@@ -1,4 +1,4 @@
-# iSpy_python
+# I Spy
 
 This code is for the [HiLT Lab's](http://hilt.cse.unt.edu) [I Spy Project](http://hilt.cse.unt.edu/ispy.html).
 
